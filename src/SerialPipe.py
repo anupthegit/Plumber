@@ -16,26 +16,35 @@ class SerialPipe:
 
     def execute(self):
         prev_output = None
+        self.__step_outputs = self.get_persisted_outputs()
         for entry in self.__pipeline_entries:
-            prev_output = self.__execute_pipeline_step(entry[1], prev_output)
-            self.__step_outputs[entry[0]] = prev_output
-            with open(self.__id, 'wb') as f:
-                pickle.dump(self.__step_outputs, f)
+            if entry[0] not in self.__step_outputs:
+                prev_output = self.__execute_pipeline_step(entry[1], prev_output)
+                self.__step_outputs[entry[0]] = prev_output
+                with open(self.__id, 'wb') as f:
+                    pickle.dump(self.__step_outputs, f)
+            else:
+                prev_output = self.__step_outputs[entry[0]]
         return prev_output
 
     def get_outputs(self):
         if self.__step_outputs == {}:
-            if os.path.exists(self.__id):
-                with open(self.__id, 'rb') as f:
-                    self.__step_outputs = pickle.load(f)
+            self.__step_outputs = self.get_persisted_outputs()
         return self.__step_outputs
+
+    def get_persisted_outputs(self):
+        if os.path.exists(self.__id):
+            with open(self.__id, 'rb') as f:
+                return pickle.load(f)
+        else:
+            return {}
 
     def get_id(self):
         return self.__id
 
     @staticmethod
     def __execute_pipeline_step(pipeline_step, input_data):
-        func = pipeline_step['function']
+        func = pipeline_step['func']
         if 'args' not in pipeline_step:
             return func(input_data)
         args = pipeline_step['args']
